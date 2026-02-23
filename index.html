@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Asupan Viral</title>
+  <style>
+    body {
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-height:100vh;
+      margin:0;
+      background:#000;
+      font-family:Arial,sans-serif;
+    }
+    
+    .video-container {
+      position:relative;
+      width:100%;
+      max-width:720px;
+    }
+    
+    video {
+      width:100%;
+      border-radius:10px;
+      display:block;
+    }
+    
+    /* Overlay untuk mencegah interaksi */
+    .overlay {
+      position:absolute;
+      top:0;
+      left:0;
+      width:100%;
+      height:100%;
+      background:rgba(0,0,0,0.7);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:10px;
+      z-index:10;
+      cursor:pointer;
+    }
+    
+    /* Teks Tap to Continue */
+    .tap-text {
+      color:white;
+      font-size:24px;
+      font-weight:bold;
+      text-align:center;
+      padding:20px;
+      background:rgba(255,0,0,0.8);
+      border-radius:50px;
+      border:3px solid white;
+      box-shadow:0 0 20px rgba(255,0,0,0.5);
+      animation:pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { transform:scale(1); }
+      50% { transform:scale(1.1); }
+      100% { transform:scale(1); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="video-container">
+  <video id="vid" controls playsinline preload="metadata">
+    <source src="http://cdn.videy.co/FtG0qeyB1.mp4" type="video/mp4">
+  </video>
+</div>
+
+<script>
+  const video = document.getElementById("vid");
+  const container = document.querySelector('.video-container');
+  
+  // 11 link iklan berbeda (link Shopee sebagai yang pertama, 10 link baru setelahnya)
+  const daftarIklan = [
+    "https://s.shopee.co.id/40bIpwP7cy", // Iklan pertama (link Shopee) - TETAP
+    // 10 link baru:
+    "https://otieu.com/4/9703244",
+    "https://otieu.com/4/9815426",
+    "https://otieu.com/4/9815424",
+    "https://otieu.com/4/10071971",
+    "https://otieu.com/4/9703236",
+    "https://otieu.com/4/9815427",
+    "https://otieu.com/4/9815425",
+    "https://otieu.com/4/9815422",
+    "https://otieu.com/4/9815420",
+    "https://otieu.com/4/9815428"
+  ];
+
+  // INTERVAL DIUBAH MENJADI 5 DETIK (5000 milidetik)
+  const intervalWaktu = 5000; // 5 detik
+  
+  let intervalIklan;
+  let indeksIklan = 0;
+  let sedangLock = false; // Status lock video
+  let overlay = null; // Referensi overlay
+  let semuaIklanTampil = false; // Flag untuk cek apakah semua iklan sudah tampil
+
+  // Fungsi untuk membuat overlay
+  function buatOverlay() {
+    // Hapus overlay lama jika ada
+    hapusOverlay();
+    
+    // Buat overlay baru
+    overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = '<div class="tap-text">🔴 TAP TO CONTINUE</div>';
+    
+    // Event listener untuk klik pada overlay
+    overlay.addEventListener('click', function() {
+      // Buka iklan
+      const linkSekarang = daftarIklan[indeksIklan];
+      window.open(linkSekarang, "_blank");
+      
+      // Update indeks untuk iklan berikutnya
+      indeksIklan = (indeksIklan + 1);
+      
+      // Cek apakah semua iklan sudah tampil
+      if (indeksIklan >= daftarIklan.length) {
+        semuaIklanTampil = true;
+        // Hentikan interval agar tidak ada iklan lagi
+        if (intervalIklan) {
+          clearInterval(intervalIklan);
+          intervalIklan = null;
+        }
+      }
+      
+      // Hapus overlay dan unlock video
+      hapusOverlay();
+      sedangLock = false;
+      
+      // Video bisa di-play lagi (hanya jika masih ada iklan)
+      if (!semuaIklanTampil) {
+        video.play().catch(e => console.log('Auto play gagal:', e));
+      } else {
+        console.log('Semua iklan sudah tampil, video berjalan normal tanpa iklan');
+      }
+    });
+    
+    container.appendChild(overlay);
+  }
+  
+  // Fungsi untuk menghapus overlay
+  function hapusOverlay() {
+    if (overlay && overlay.parentNode) {
+      overlay.remove();
+      overlay = null;
+    }
+  }
+
+  // Fungsi untuk mengecek dan lock video
+  function cekDanLockVideo() {
+    // Jangan lock jika semua iklan sudah tampil
+    if (semuaIklanTampil) return;
+    if (sedangLock) return; // Sudah dalam keadaan lock
+    
+    // Pause video
+    video.pause();
+    
+    // Set status lock
+    sedangLock = true;
+    
+    // Buat overlay
+    buatOverlay();
+  }
+
+  // Interval untuk mengecek waktu dan lock video
+  function mulaiIntervalLock() {
+    // Jangan mulai interval jika semua iklan sudah tampil
+    if (semuaIklanTampil) return;
+    
+    if (intervalIklan) {
+      clearInterval(intervalIklan);
+    }
+    
+    intervalIklan = setInterval(() => {
+      // Hanya lock jika video sedang diputar, tidak dalam keadaan lock, dan masih ada iklan
+      if (!video.paused && !video.ended && !sedangLock && !semuaIklanTampil) {
+        cekDanLockVideo();
+      }
+    }, intervalWaktu);
+  }
+
+  // Event listener untuk play
+  video.addEventListener("play", function () {
+    // Reset indeks jika diputar dari awal
+    if (video.currentTime < 0.5) {
+      indeksIklan = 0;
+      semuaIklanTampil = false; // Reset flag saat video diputar dari awal
+    }
+    
+    // Hanya mulai interval jika tidak dalam keadaan lock dan masih ada iklan
+    if (!sedangLock && !semuaIklanTampil) {
+      mulaiIntervalLock();
+    }
+  });
+
+  // Saat video dijeda (selain karena lock)
+  video.addEventListener("pause", function () {
+    // Jangan hentikan interval jika sedang lock (karena lock yang pause video)
+    if (!sedangLock && intervalIklan && !semuaIklanTampil) {
+      clearInterval(intervalIklan);
+      intervalIklan = null;
+    }
+  });
+
+  // Saat video selesai
+  video.addEventListener("ended", function () {
+    if (intervalIklan) {
+      clearInterval(intervalIklan);
+      intervalIklan = null;
+    }
+    hapusOverlay();
+    sedangLock = false;
+    // Tidak reset indeks di sini agar kalau diputar lagi, iklan lanjut dari terakhir
+  });
+
+  // Cegah user memencet play saat sedang lock
+  video.addEventListener("play", function (e) {
+    if (sedangLock) {
+      e.preventDefault();
+      video.pause();
+    }
+  }, { once: false });
+
+  // Reset jika user menggeser ke awal
+  video.addEventListener("seeking", function() {
+    if (video.currentTime < 0.5) {
+      // Opsional: reset indeks dan flag jika user kembali ke awal
+      // indeksIklan = 0;
+      // semuaIklanTampil = false;
+    }
+  });
+  
+  // Bersihkan overlay saat video dipindah
+  video.addEventListener("loadeddata", function() {
+    hapusOverlay();
+    sedangLock = false;
+  });
+</script>
+
+</body>
+</html>
